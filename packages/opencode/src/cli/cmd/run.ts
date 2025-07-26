@@ -64,6 +64,25 @@ export const RunCommand = cmd({
 
     if (!process.stdin.isTTY) message += "\n" + (await Bun.stdin.text())
 
+    // Execute the prompt entered hook
+    const promptEnteredHook = process.env.OPENCODE_PROMPT_ENTERED
+    if (promptEnteredHook) {
+      try {
+        Bun.spawn({
+          cmd: promptEnteredHook.split(' '),
+          cwd: process.cwd(),
+          env: {
+            ...process.env,
+            PROMPT_TEXT: message
+          },
+          stdout: "ignore",
+          stderr: "ignore",
+        })
+      } catch (error) {
+        // Silently ignore hook errors
+      }
+    }
+
     await bootstrap({ cwd: process.cwd() }, async () => {
       const session = await (async () => {
         if (args.continue) {
@@ -177,6 +196,30 @@ export const RunCommand = cmd({
           },
         ],
       })
+
+
+      // Execute the prompt done hook
+      const promptDoneHook = process.env.OPENCODE_PROMPT_DONE
+      if (promptDoneHook) {
+        try {
+          const summary = result.parts
+            .filter((p) => p.type === "text")
+            .map((p) => p.text)
+            .join("\n")
+          Bun.spawn({
+            cmd: promptDoneHook.split(' '),
+            cwd: process.cwd(),
+            env: {
+              ...process.env,
+              PROMPT_SUMMARY: summary
+            },
+            stdout: "ignore",
+            stderr: "ignore",
+          })
+        } catch (error) {
+          // Silently ignore hook errors
+        }
+      }
 
       const isPiped = !process.stdout.isTTY
       if (isPiped) {

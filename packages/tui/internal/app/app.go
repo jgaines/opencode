@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -476,6 +477,16 @@ func (a *App) CreateSession(ctx context.Context) (*opencode.Session, error) {
 }
 
 func (a *App) SendPrompt(ctx context.Context, prompt Prompt) (*App, tea.Cmd) {
+	// Execute the prompt entered hook
+	if promptEnteredHook := os.Getenv("OPENCODE_PROMPT_ENTERED"); promptEnteredHook != "" {
+		go func() {
+			cmd := exec.Command("/bin/sh", "-c", promptEnteredHook)
+			cmd.Dir = a.Info.Path.Cwd
+			cmd.Env = append(os.Environ(), "PROMPT_TEXT="+prompt.Text)
+			cmd.Run() // Ignore errors
+		}()
+	}
+
 	var cmds []tea.Cmd
 	if a.Session.ID == "" {
 		session, err := a.CreateSession(ctx)

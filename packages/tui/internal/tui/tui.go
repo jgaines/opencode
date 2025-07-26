@@ -414,6 +414,40 @@ func (a Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return false
 			})
 
+			// Check if this is an assistant message that just completed
+			if assistantMsg, ok := msg.Properties.Info.AsUnion().(opencode.AssistantMessage); ok {
+				// Check if the message just completed (Time.Completed changed from 0 to non-zero)
+				if assistantMsg.Time.Completed > 0 {
+					wasCompleted := false
+					if matchIndex > -1 {
+						if existingAssistant, ok := a.app.Messages[matchIndex].Info.(opencode.AssistantMessage); ok {
+							wasCompleted = existingAssistant.Time.Completed > 0
+						}
+					}
+					// If message wasn't completed before but is now, execute the hook
+					if !wasCompleted {
+						if promptDoneHook := os.Getenv("OPENCODE_PROMPT_DONE"); promptDoneHook != "" {
+							go func() {
+								// Get message parts to create summary
+								var summary strings.Builder
+								if matchIndex > -1 {
+									for _, part := range a.app.Messages[matchIndex].Parts {
+										if textPart, ok := part.(opencode.TextPart); ok {
+											summary.WriteString(textPart.Text)
+											summary.WriteString("\n")
+										}
+									}
+								}
+								cmd := exec.Command("/bin/sh", "-c", promptDoneHook)
+								cmd.Dir = a.app.Info.Path.Cwd
+								cmd.Env = append(os.Environ(), "PROMPT_SUMMARY="+summary.String())
+								cmd.Run() // Ignore errors
+							}()
+						}
+					}
+				}
+			}
+
 			if matchIndex > -1 {
 				match := a.app.Messages[matchIndex]
 				a.app.Messages[matchIndex] = app.Message{
