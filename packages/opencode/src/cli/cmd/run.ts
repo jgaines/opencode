@@ -69,7 +69,7 @@ export const RunCommand = cmd({
     if (promptEnteredHook) {
       try {
         Bun.spawn({
-          cmd: promptEnteredHook.split(' '),
+          cmd: ["/bin/sh", "-c", promptEnteredHook],
           cwd: process.cwd(),
           env: {
             ...process.env,
@@ -207,7 +207,7 @@ export const RunCommand = cmd({
             .map((p) => p.text)
             .join("\n")
           Bun.spawn({
-            cmd: promptDoneHook.split(' '),
+            cmd: ["/bin/sh", "-c", promptDoneHook],
             cwd: process.cwd(),
             env: {
               ...process.env,
