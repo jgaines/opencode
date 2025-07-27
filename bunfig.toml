@@ -1,2 +1,6 @@
 [install]
 exact = true
+
+[bundle]
+# Suppress warnings about wildcard sideEffects
+logLevel = "error"
